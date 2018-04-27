@@ -3,6 +3,7 @@ from sklearn.decomposition import NMF
 from sklearn.mixture import GaussianMixture
 import pandas as pd
 
+
 def filter_with_gmm(df, viability_predictors, rs=42, P=90, nc=1):
   
   """
@@ -46,12 +47,16 @@ def filter_with_gmm(df, viability_predictors, rs=42, P=90, nc=1):
 
 
 if __name__ == "__main__":
-
+  import matplotlib.pyplot as plt
   
   df = pd.read_csv("Levine_32dimtransform.csv")
   df['specified'] = df['label'].isnull()
   viability_predictors = list(df)[1:37]
   
-  df, gmm = filter_with_gmm(df, viability_predictors)
+  df, gmm = filter_with_gmm(df, ['DNA1', 'DNA2','Cell_length', 'Viability'], P=90)
   print(sum(df['inlier']), sum(~df['inlier']))
-
+  inliers = df[df['inlier'] == True].label
+  outliers = df[df['inlier'] == False].label
+  print('inliers', inliers.value_counts(dropna=False) / len(inliers), sep='\n')
+  print('outliers', outliers.value_counts(dropna=False) / len(outliers), sep='\n')
+  #df.to_csv('saved_scored_df.csv')
