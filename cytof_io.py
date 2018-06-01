@@ -40,6 +40,12 @@ def load_fcs(file, markers=None, n=2, scale=5, ID=None, seed=42, trans=True):
         ID = file
     return rename(FCM(ID=ID, datafile=file))
 
+def get_C1_CA_metals(metals):
+    not_cd45 = list(filter(lambda x: 'CD45' not in x, metals))
+    not_labelled = list(filter(lambda x: '_' not in x, not_cd45))
+    labelled = list(filter(lambda x: '_' in x, not_cd45))
+    labels_for_live = list(filter(lambda x: ('DEAD' not in x) and ('DNA' not in x), labelled))
+    return not_cd45, not_labelled, labelled, labels_for_live
 if __name__ == "__main__":
 	import pandas as pd
 	df = pd.DataFrame({'A':range(10), 'B':range(10)})
