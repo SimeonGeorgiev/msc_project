@@ -65,11 +65,8 @@ def load_sample(ID, metals=(2, -4)):
     IDstim[ID] = True
     IDunstim['S'] = False
     IDunstim[ID] = True
-    ID_sample_df = IDstim.append(IDunstim)
+    ID_sample_df = IDstim.append(IDunstim, ignore_index=True)
     return ID_sample_df
                       
 if __name__ == "__main__":
-	import pandas as pd
-	df = pd.DataFrame({'A':range(10), 'B':range(10)})
-	df = shuffle(df)
-	print(df)
+	import test_cytof_io

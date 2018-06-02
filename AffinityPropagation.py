@@ -2,7 +2,7 @@
 
 # Author: Alexandre Gramfort alexandre.gramfort@inria.fr
 #        Gael Varoquaux gael.varoquaux@normalesup.org
-# L1 distance metric by SimeonGeorgiev sgeorgievbngo@gmail.com
+# Use of arbitrary distance metrics added by SimeonGeorgiev sgeorgievbngo@gmail.com
 
 # License: BSD 3 clause
 
