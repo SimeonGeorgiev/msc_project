@@ -15,4 +15,4 @@ def test_loaded_sample(ID):
 
 test_loaded_sample(CA)
 test_loaded_sample(C1)
-prin('All assertions are True')
+print('All Assertions are True')
