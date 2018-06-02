@@ -4,7 +4,6 @@ from sklearn.cluster import MiniBatchKMeans
 from dists import pairwise_mahalanobis
 import pandas as pd
 from pandas import Series, DataFrame
-from cytof_io import load_df
 from time import time
 from scipy.cluster import hierarchy
 from Bio import Phylo as ph
@@ -14,7 +13,56 @@ import matplotlib.pyplot as plt
 from plot_tSNE import random_subset, get_random_colors
 from sklearn.manifold import TSNE
 from plot_trees import change_names, getNewick, get_color_f
+from collections import OrderedDict as od
+from math import ceil
 
+def __walking_sum(of):
+    """
+    Used by random_subset
+    Need this so that the dataset can be split and coloured by clusters.
+    """
+    from_to = [0 for _ in of]
+    temp = [0 for _ in of]
+    for i, val in enumerate(of):
+        temp[i] = val + temp[i-1]
+        from_to[i] = temp[i-1], temp[i]
+
+    return from_to
+
+def random_subset(df, label_name='label', desired_length=10000, seed=42):
+
+    """
+    Randomly chooses a subset of the data from each label and
+    returns the subset of the dataframe and the indices.
+    """
+    np.random.seed(seed)
+    len_df = len(df)
+    p_to_keep = desired_length / len_df
+    temp = []; sizes = []
+    proportions = od()
+    for i in np.unique(df[label_name].values):
+        group = df[df[label_name] == i]
+        length = group.shape[0]
+        proportions.update({i: {'p': length / len_df, 'markers':[]}})
+        random_indices = np.random.choice(range(0, length),
+                                          size=ceil(length * p_to_keep))
+
+        # group.iloc[random_indices] -> a subset  of the dataset        
+        subgroup = group.iloc[random_indices]
+        temp.append(subgroup)
+        sizes.append(subgroup.shape[0])
+    df2 = pd.concat(temp)
+    indices = __walking_sum(sizes)
+    return df2, indices, proportions
+
+def get_random_colors():
+    np.random.seed(42)
+    colors = []
+    while True:
+        color = np.random.uniform(low=0.0, high=0.8, size=(1, 3))
+        while color in colors:
+            color = np.random.uniform(low=0.0, high=0.8, size=(1, 3))
+        yield color
 
 def vec_translate(a, my_dict):
 	"""
@@ -40,12 +88,12 @@ class _APMerge_classifier(object):
 	def __repr__(self):
 		return str((self.km, self.AP))
 
-	def plot(self, df=None, markers=None, individual="individual", 
+	def plot(self, df=None, markers=None, individual="individual", condition="individual",
 					H=1, D=2, colors_f=get_color_f,
 					show=False, save=True, fname="APMergeHeatmap"):
-
+# change so that the label used is condition, not individual
 		val_c = df[individual].value_counts()
-		total_h, total_d  = val_c[1], val_c[2]
+		total_h, total_d  = val_c[H], val_c[D]
 		self.labels_ = self.predict(df[markers].values)
 		labels_H = Series(self.labels_[df[individual] == H])
 		labels_D = Series(self.labels_[df[individual] == D])
@@ -212,6 +260,10 @@ class APMerge(object):
 	def set_levels(self):
 		self.levels = sorted(self.models.keys())
 
+	def get_info(self, n_clusters=True, centroids=False):
+		for i in range(len(self.levels)):
+			model = self.get_level(i)
+
 
 	def get_level(self, K):
 		return self.models[round(self.levels[K], 1)]
@@ -260,21 +312,22 @@ class APMerge(object):
 		
 
 if __name__ == "__main__":
+	from cytof_io import load_df
 	df, markers = load_df()
-	for i in range(1, 6):
-		start = time()
-		NC = 150
-		n_init = 1
-		level = 1
-		model = APMerge(n_clusters=NC, n_init=n_init, random_state=i, verbose=0, df=df, markers=markers)
-		model.hierarchical_fit(percentiles=[50, 85, 95])
-		level_nc = model.get_level(level).n_clusters
 
-		model.plot_level(level=level, fname="NC={};N_init={};lvl:{},nc:{};i:{}".format(
-							NC, n_init,level+1, level_nc,i), show=False, save=False)
-		model.plot_tsne_maps(fname="APMerge-tSNEmap;i:"+str(i)+";NC:", desired_length=100, show=False, save=False)
-		print('Preferences: ', sorted(list(model.models.keys())))
-		print('Took:{}seconds'.format(round(time()-start, 1)))
+	start = time()
+	NC = 5
+	n_init = 1
+	level = 1
+	model = APMerge(n_clusters=NC, n_init=n_init, random_state=1, verbose=0, df=df, markers=markers)
+	model.hierarchical_fit(percentiles=[50, 85, 95])
+	level_nc = model.get_level(level).n_clusters
 
-	# Create a consensus APMerge class, which run kmeans with different random states
+	model.plot_level(level=level, fname="NC={};N_init={};lvl:{},nc:{}".format(
+						NC, n_init,level+1, level_nc, 1), show=False, save=False)
+	model.plot_tsne_maps(fname="APMerge-tSNEmap;"+";NC:", desired_length=100, show=False, save=False)
+	print('Preferences: ', sorted(list(model.models.keys())))
+	print('Took:{}seconds'.format(round(time()-start, 1)))
+
+# Create a consensus APMerge class, which run kmeans with different random states
 	# then it finds similar clusters (in markers) with similar expression (ratio H/D)
