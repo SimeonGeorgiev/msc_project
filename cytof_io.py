@@ -60,8 +60,6 @@ def load_sample(ID, metals=(2, -4)):
     trans = arcsinh_trans()
     IDstim = trans(stim.copy()[metal_names])
     IDunstim = trans(unstim.copy()[metal_names])
-    IDunstim = IDunstim.reindex(index=range(
-      len(IDstim), len(IDstim) + len(IDunstim)))
 
     IDstim['S'] = True
     IDstim[ID] = True
