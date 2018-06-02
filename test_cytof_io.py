@@ -13,6 +13,3 @@ def test_loaded_sample(ID):
 
 test_loaded_sample(CA)
 test_loaded_sample(C1)
-print(len(CA.index.unique()))
-print(len(C1.index.unique()))
-
