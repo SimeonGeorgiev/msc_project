@@ -72,77 +72,82 @@ def affinity_propagation(S, preference=None, convergence_iter=15, max_iter=200,
 
     if preference is None:
         preference = S.min()
-        print('max_neg_dist: ', preference)
     if damping < 0.5 or damping >= 1:
         raise ValueError('damping must be >= 0.5 and < 1')
 
     random_state = np.random.RandomState(0)
 
-    # Place preference on the diagonal of S
-    S.flat[::(n_samples + 1)] = preference
-
-    A = np.zeros((n_samples, n_samples))
-    R = np.zeros((n_samples, n_samples))  # Initialize messages
-    # Intermediate results
-    tmp = np.zeros((n_samples, n_samples))
-
     # Remove degeneracies
     S += ((np.finfo(np.double).eps * S + np.finfo(np.double).tiny * 100) *
           random_state.randn(n_samples, n_samples))
 
-    # Execute parallel affinity propagation updates (numpy matrix paralellism)
-    e = np.zeros((n_samples, convergence_iter))
 
-    ind = np.arange(n_samples)
+    converged = False
+    i = 0
+    while not converged and (i < 10):
+        # Place preference on the diagonal of S
 
-    for it in range(max_iter):
-        # tmp = A + S; compute responsibilities
-        np.add(A, S, tmp)
-        I = np.argmax(tmp, axis=1)
-        Y = tmp[ind, I]  # np.max(A + S, axis=1)
-        tmp[ind, I] = -np.inf
-        Y2 = np.max(tmp, axis=1)
+        S.flat[::(n_samples + 1)] = preference
 
-        # tmp = Rnew
-        np.subtract(S, Y[:, None], tmp)
-        tmp[ind, I] = S[ind, I] - Y2
+        A = np.zeros((n_samples, n_samples))
+        R = np.zeros((n_samples, n_samples))  # Initialize messages
+        # Intermediate results
+        tmp = np.zeros((n_samples, n_samples))
+        # Execute parallel affinity propagation updates (numpy matrix paralellism)
+        e = np.zeros((n_samples, convergence_iter))
 
-        # Damping
-        tmp *= 1 - damping
-        R *= damping
-        R += tmp
+        ind = np.arange(n_samples)
 
-        # tmp = Rp; compute availabilities
-        np.maximum(R, 0, tmp)
-        tmp.flat[::n_samples + 1] = R.flat[::n_samples + 1]
+        for it in range(max_iter):
+            # tmp = A + S; compute responsibilities
+            np.add(A, S, tmp)
+            I = np.argmax(tmp, axis=1)
+            Y = tmp[ind, I]  # np.max(A + S, axis=1)
+            tmp[ind, I] = -np.inf
+            Y2 = np.max(tmp, axis=1)
 
-        # tmp = -Anew
-        tmp -= np.sum(tmp, axis=0)
-        dA = np.diag(tmp).copy()
-        tmp.clip(0, np.inf, tmp)
-        tmp.flat[::n_samples + 1] = dA
+            # tmp = Rnew
+            np.subtract(S, Y[:, None], tmp)
+            tmp[ind, I] = S[ind, I] - Y2
 
-        # Damping
-        tmp *= 1 - damping
-        A *= damping
-        A -= tmp
+            # Damping
+            tmp *= 1 - damping
+            R *= damping
+            R += tmp
 
-        # Check for convergence
-        E = (np.diag(A) + np.diag(R)) > 0
-        e[:, it % convergence_iter] = E
-        K = np.sum(E, axis=0)
+            # tmp = Rp; compute availabilities
+            np.maximum(R, 0, tmp)
+            tmp.flat[::n_samples + 1] = R.flat[::n_samples + 1]
 
-        if it >= convergence_iter:
-            se = np.sum(e, axis=1)
-            unconverged = (np.sum((se == convergence_iter) + (se == 0))
-                           != n_samples)
-            if (not unconverged and (K > 0)) or (it == max_iter):
-                if verbose:
-                    print("Converged after %d iterations." % it)
-                break
-    else:
-        # If the loop finishes without reaching convergence.
-        warnings.warn("Did not converge")
+            # tmp = -Anew
+            tmp -= np.sum(tmp, axis=0)
+            dA = np.diag(tmp).copy()
+            tmp.clip(0, np.inf, tmp)
+            tmp.flat[::n_samples + 1] = dA
+
+            # Damping
+            tmp *= 1 - damping
+            A *= damping
+            A -= tmp
+
+            # Check for convergence
+            E = (np.diag(A) + np.diag(R)) > 0
+            e[:, it % convergence_iter] = E
+            K = np.sum(E, axis=0)
+
+            if it >= convergence_iter:
+                se = np.sum(e, axis=1)
+                unconverged = (np.sum((se == convergence_iter) + (se == 0))
+                               != n_samples)
+                if (not unconverged and (K > 0)) or (it == max_iter):
+                    if verbose:
+                        print("Converged after %d iterations." % it)
+                    converged = True
+                    break
+        else:
+            # If the loop finishes without reaching convergence.
+            i += 1
+            converged = False
 
     I = np.where(np.diag(A + R) > 0)[0]
     K = I.size  # Identify exemplars
